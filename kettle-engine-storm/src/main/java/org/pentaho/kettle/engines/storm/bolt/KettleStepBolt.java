@@ -23,6 +23,7 @@ import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Tuple;
+import org.mozilla.javascript.Context;
 import org.pentaho.di.core.RowSet;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.exception.KettleStepException;
@@ -30,6 +31,7 @@ import org.pentaho.di.core.row.RowMetaInterface;
 import org.pentaho.di.trans.step.RowListener;
 import org.pentaho.di.trans.step.StepMetaDataCombi;
 import org.pentaho.di.trans.step.errorhandling.StreamInterface;
+import org.pentaho.di.trans.steps.scriptvalues_mod.ScriptValuesModData;
 import org.pentaho.kettle.engines.storm.CappedValues;
 import org.pentaho.kettle.engines.storm.KettleControlSignal;
 import org.pentaho.kettle.engines.storm.KettleStormUtils;
@@ -55,6 +57,8 @@ public class KettleStepBolt extends BaseSignalBolt implements RowListener {
 
   private String transXml;
   private String stepName;
+
+  private static volatile transient  Context ctx = null;
 
   private transient StepMetaDataCombi step;
   private OutputCollector collector;
@@ -271,6 +275,7 @@ public class KettleStepBolt extends BaseSignalBolt implements RowListener {
           // received all input.
           if (isInputComplete() || (isInfoInputComplete() && !receivedTuples.isEmpty())) {
             if (!done) {
+              specialHandlingForJavaScript();
               processRows();
             }
           } else {
@@ -283,8 +288,14 @@ public class KettleStepBolt extends BaseSignalBolt implements RowListener {
     }
   }
 
+    private void specialHandlingForJavaScript() {
+        if (getStep().data  instanceof ScriptValuesModData) {
+            Context.enter();
+        }
+    }
 
-  /**
+
+    /**
    * Calculates how many rows are waiting to be processed on across all input row sets.
    *
    * @return The number of rows in all input row sets.
